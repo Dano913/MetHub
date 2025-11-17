@@ -113,7 +113,7 @@ if push_result:
 task_duration_map = map_task_duration(commits)
 
 # --- Mostrar tabla de commits con duración de tareas ---
-print(f"{'SHA':<8} {'Commit Date':<20} {'Time':<15} {'Message'}")
+print(f"{'SHA':<8} {'Commit Date':<20} {'Times':<15} {'Message'}")
 print("-"*100)
 
 for c in commits:
