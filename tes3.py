@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import os
 
 # --- Configuración ---
-LOCAL_REPO_PATH = r"C:\Users\danie\Desktop\Proyectos\Funcionan\CodexJs"
+LOCAL_REPO_PATH = r"C:\Users\danie\Desktop\Proyectos\Funcionan\metricas"
 BRANCH = "main"
 LOG_FILE = os.path.join(LOCAL_REPO_PATH, "push_log.txt")
 
@@ -113,7 +113,7 @@ if push_result:
 task_duration_map = map_task_duration(commits)
 
 # --- Mostrar tabla de commits con duración de tareas ---
-print(f"{'SHA':<8} {'Commit Date':<20} {'Duracion Tarea':<15} {'Mensaje'}")
+print(f"{'SHA':<8} {'Commit Date':<20} {'Time':<15} {'Message'}")
 print("-"*100)
 
 for c in commits:
