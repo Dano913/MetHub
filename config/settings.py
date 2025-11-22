@@ -1,6 +1,5 @@
-import os
+# config/settings.py
+# Rama por defecto para hacer push
 
-LOCAL_REPO_PATH = r"C:\Users\danie\Desktop\Proyectos\Funcionan\CodexJs"
-BRANCH = "main"
-LOG_FILE = os.path.join(LOCAL_REPO_PATH, "push_log.txt")
-print(os.getcwd())
+BRANCH = "main"   #Define una variable global que indica cuál es la rama de Git donde se harán los pushes por defecto
+
