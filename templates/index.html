@@ -2,74 +2,154 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Git Repo Manager</title>
+    <title>Git Dashboard</title>
     <style>
-        body { font-family: Arial; margin: 20px; background: #f0f0f0; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #333; padding: 5px; text-align: left; }
-        th { background: #ddd; }
-        form { margin-bottom: 10px; }
-        button:disabled { background: #999; cursor: not-allowed; }
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 1100px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 { margin-top: 0; }
+
+        select, button {
+            padding: 10px;
+            margin: 5px 0 20px 0;
+            font-size: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        table th, table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        table th {
+            background: #eaeaea;
+        }
+
+        .tarea-box {
+            margin-top: 25px;
+            padding: 15px;
+            background: #fff7e6;
+            border-left: 5px solid #ffa500;
+            border-radius: 6px;
+        }
+
+        .ok { color: green; }
+        .error { color: red; }
     </style>
 </head>
+
 <body>
-    <h1>Git Repo Manager</h1>
+<div class="container">
+
+    <h1>Git Activity Dashboard</h1>
 
     {% if error_message %}
-        <p style="color:red;">Error: {{ error_message }}</p>
+    <p class="error">{{ error_message }}</p>
     {% endif %}
 
+    <!-- Selector de repos -->
     <form method="POST">
-        <label>Repositorio:</label>
-        <select name="repo">
-            {% for r in repo_choices %}
-                <option value="{{ r }}" {% if r==selected_repo %}selected{% endif %}>{{ r }}</option>
+        <label for="repo">Seleccionar repositorio:</label><br>
+        <select name="repo" id="repo">
+            {% for repo in repo_choices %}
+                <option value="{{ repo }}" {% if repo == selected_repo %}selected{% endif %}>
+                    {{ repo }}
+                </option>
             {% endfor %}
         </select>
-        <button type="submit" name="action" value="select">Seleccionar</button>
-        <button type="submit" name="action" value="refresh">Actualizar</button>
-        <button type="submit" name="action" value="push">Hacer Push</button>
+
+        <br><br>
+
+        <button type="submit" name="action" value="select">Cargar</button>
+        <button type="submit" name="action" value="push">Push + Log</button>
     </form>
 
-    {% if selected_repo %}
-        <p><strong>Inicio del proyecto:</strong> {{ project_start.date() if project_start else '-' }}</p>
-        <p><strong>Días transcurridos:</strong> {{ days_passed }} {% if project_finalizado %}(Proyecto Finalizado){% endif %}</p>
-        <p><strong>Tiempo total trabajado:</strong> {{ total_duration }}</p>
+    <hr>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>SHA</th>
-                    <th>Commit Date</th>
-                    <th>Time</th>
-                    <th>Message</th>
-                    <th>Push Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in commits %}
+    {% if selected_repo %}
+    <h2>Repositorio seleccionado:</h2>
+    <p><strong>{{ selected_repo }}</strong></p>
+
+    <h2>Estado del proyecto</h2>
+    <p>Inicio: <strong>{{ project_start }}</strong></p>
+    <p>Días transcurridos: <strong>{{ days_passed }}</strong></p>
+    <p>¿Finalizado?:
+        {% if project_finalizado %}
+            <span class="ok">Sí</span>
+        {% else %}
+            <span class="error">No</span>
+        {% endif %}
+    </p>
+
+    <h2>Duración total de tareas (+ / -)</h2>
+    <p><strong>{{ total_duration }}</strong></p>
+
+    <h2>Tareas detectadas</h2>
+
+    <div class="tarea-box">
+        {% if tareas %}
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ c['sha'][:7] }}</td>
-                        <td>{{ c['commit_date'] }}</td>
-                        <td>
-                            {% if c['sha'][:7] in task_map %}
-                                {{ format_timedelta(task_map[c['sha'][:7]]['duracion']) }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>{{ c['message'] }}</td>
-                        <td>
-                            {% if c['sha'][:7] in push_dates %}
-                                {{ push_dates[c['sha'][:7]] }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
+                        <th>Commit Fin (SHA)</th>
+                        <th>Tarea</th>
+                        <th>Duración</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {% for sha, info in tareas.items() %}
+                    <tr>
+                        <td>{{ sha }}</td>
+                        <td>{{ info.tarea }}</td>
+                        <td>{{ info.duracion }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No se han detectado tareas aún.</p>
+        {% endif %}
+    </div>
+
+
+    <hr>
+
+    <h2>Commits</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>SHA</th>
+                <th>Mensaje</th>
+                <th>Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in commits %}
+            <tr>
+                <td>{{ c.sha[:7] }}</td>
+                <td>{{ c.message }}</td>
+                <td>{{ c.commit_date }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
     {% endif %}
+
+</div>
 </body>
 </html>
