@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Git Repo Manager</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f0f0f0; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 5px; text-align: left; }
+        th { background: #ddd; }
+        form { margin-bottom: 10px; }
+        button:disabled { background: #999; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Git Repo Manager</h1>
+
+    {% if error_message %}
+        <p style="color:red;">Error: {{ error_message }}</p>
+    {% endif %}
+
+    <form method="POST">
+        <label>Repositorio:</label>
+        <select name="repo">
+            {% for r in repo_choices %}
+                <option value="{{ r }}" {% if r==selected_repo %}selected{% endif %}>{{ r }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="action" value="select">Seleccionar</button>
+        <button type="submit" name="action" value="refresh">Actualizar</button>
+        <button type="submit" name="action" value="push">Hacer Push</button>
+    </form>
+
+    {% if selected_repo %}
+        <p><strong>Inicio del proyecto:</strong> {{ project_start.date() if project_start else '-' }}</p>
+        <p><strong>Días transcurridos:</strong> {{ days_passed }} {% if project_finalizado %}(Proyecto Finalizado){% endif %}</p>
+        <p><strong>Tiempo total trabajado:</strong> {{ total_duration }}</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>SHA</th>
+                    <th>Commit Date</th>
+                    <th>Time</th>
+                    <th>Message</th>
+                    <th>Push Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in commits %}
+                    <tr>
+                        <td>{{ c['sha'][:7] }}</td>
+                        <td>{{ c['commit_date'] }}</td>
+                        <td>
+                            {% if c['sha'][:7] in task_map %}
+                                {{ format_timedelta(task_map[c['sha'][:7]]['duracion']) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ c['message'] }}</td>
+                        <td>
+                            {% if c['sha'][:7] in push_dates %}
+                                {{ push_dates[c['sha'][:7]] }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</body>
+</html>
