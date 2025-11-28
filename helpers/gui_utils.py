@@ -54,7 +54,9 @@ def cargar_commits(                                    # Carga commits en la tab
     # Actualizar panel superior
     lbl_commits.config(text=f"Commits: {len(commits)}")                               # Actualiza número de commits
     lbl_pushes.config(text=f"Pushes: {len(push_dates)}")                              # Actualiza número de pushes
-    lbl_total_time.config(text=f"Tiempo total trabajado: {str(total_duration)}")      # Actualiza tiempo total trabajado
+    lbl_total_time.config(text=f"Tiempo total trabajado: {str(total_duration)}")  
+    
+    return commits
 
 
 def hacer_push(                                             # Hace push y refresca la tabla
