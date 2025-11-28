@@ -31,7 +31,7 @@ class CommitsPage(tk.Frame):
         self.icon_push = tk.PhotoImage(file="icons/push.png")
 
         # --- CONTENEDOR PRINCIPAL ---
-        self.main_container = tk.Frame(self, bg=t["bg"], bd=3, relief="solid",width=700, height=300)
+        self.main_container = tk.Frame(self, bg=t["bg"], bd=2, relief="solid",width=700, height=300)
         self.main_container.pack(padx=10, pady=10)
         self.main_container.pack_propagate(False) 
 
