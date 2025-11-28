@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime, timedelta
 
 from config.repo_selector import obtener_repositorios
@@ -16,39 +16,46 @@ def calcular_datos_repo(selected_repo):
     log_file = os.path.join(selected_repo, "push_log.txt")
     push_dates = get_push_dates_from_log(log_file) or {}
 
-    # Detectar proyecto finalizado
+    # ------------------------------
+    #     DETECTAR FIN DE PROYECTO
+    # ------------------------------
     commit_end = next(
         (c for c in reversed(commits) if "[END]" in c.get('message', '')),
         None
     )
     project_finalizado = commit_end is not None
 
-    # Detectar fechas
+    # ------------------------------
+    #        FECHAS DEL PROYECTO
+    # ------------------------------
     fechas = []
     for c in commits:
         try:
-            cd = c.get('commit_date')
-            if cd:
-                fechas.append(datetime.fromisoformat(cd.replace("Z", "+00:00")))
-        except:
+            commit_date_str = c.get('commit_date')
+            if commit_date_str:
+                fechas.append(datetime.fromisoformat(commit_date_str.replace("Z", "+00:00")))
+        except Exception:
             continue
 
     project_start = min(fechas) if fechas else None
-    fecha_fin = datetime.fromisoformat(commit_end['commit_date'].replace("Z", "+00:00")) if commit_end else datetime.now()
-
+    fecha_fin = (
+        datetime.fromisoformat(commit_end['commit_date'].replace("Z", "+00:00"))
+        if commit_end else datetime.now()
+    )
     days_passed = (
         max(0, (fecha_fin.date() - project_start.date()).days)
         if project_start else 0
     )
 
     # ------------------------------
-    #        DURACIÓN DE TAREAS
+    #     DURACIÓN DE TAREAS (+ / -)
     # ------------------------------
     tareas = calcular_duracion_tareas(commits)
 
+    # Suma de duraciones
     total_duration = timedelta()
-    for info in tareas.values():
-        total_duration += info["duracion"]
+    for t in tareas.values():
+        total_duration += t["duracion"]
 
     total_duration_str = format_timedelta(total_duration)
 
@@ -66,7 +73,7 @@ def calcular_datos_repo(selected_repo):
 @app.route("/", methods=["GET", "POST"])
 def index():
     error_message = None
-    selected_repo = None
+    selected_repo = request.args.get("repo")  # se puede conservar selección tras redirect
     commits = []
     push_dates = {}
     project_start = None
@@ -74,13 +81,21 @@ def index():
     total_duration_str = "0:00"
     tareas = {}
     project_finalizado = False
-    repo_choices = []
 
     try:
+        # -------------------------------------
+        #     Obtener repositorios disponibles
+        # -------------------------------------
         repos_dict = obtener_repositorios() or {}
         repo_choices = list(repos_dict.values())
-        selected_repo = repo_choices[0] if repo_choices else None
 
+        # Seleccionar repo por defecto
+        if not selected_repo:
+            selected_repo = repo_choices[0] if repo_choices else None
+
+        # -------------------------------------
+        #               POST
+        # -------------------------------------
         if request.method == "POST":
             selected_repo = request.form.get("repo") or selected_repo
             action = request.form.get("action")
@@ -90,6 +105,12 @@ def index():
             if selected_repo and action == "push":
                 git_push_and_log(selected_repo, BRANCH, log_file)
 
+                # POST → REDIRECT → GET  (evita alert al recargar)
+                return redirect(url_for("index", repo=selected_repo, pushed=1))
+
+        # -------------------------------------
+        #     Cargar datos del repo elegido
+        # -------------------------------------
         if selected_repo:
             (
                 commits,
@@ -112,10 +133,11 @@ def index():
         push_dates=push_dates,
         project_start=project_start,
         days_passed=days_passed,
-        total_duration=total_duration_str,   # TOTAL SUMADO
-        tareas=tareas,                       # TAREAS INDIVIDUALES
+        total_duration=total_duration_str,
+        tareas=tareas,
         project_finalizado=project_finalizado,
-        error_message=error_message
+        error_message=error_message,
+        pushed=request.args.get("pushed")  # para mostrar alert solo 1 vez
     )
 
 
