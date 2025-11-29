@@ -73,7 +73,7 @@ def calcular_datos_repo(selected_repo):
 @app.route("/", methods=["GET", "POST"])
 def index():
     error_message = None
-    selected_repo = request.args.get("repo")  # se puede conservar selección tras redirect
+    selected_repo = None
     commits = []
     push_dates = {}
     project_start = None
@@ -81,37 +81,35 @@ def index():
     total_duration_str = "0:00"
     tareas = {}
     project_finalizado = False
+    repo_choices = []
 
-    try:
-        # -------------------------------------
-        #     Obtener repositorios disponibles
-        # -------------------------------------
-        repos_dict = obtener_repositorios() or {}
-        repo_choices = list(repos_dict.values())
+    # -------------------------------------
+    #     Obtener repositorios disponibles
+    # -------------------------------------
+    repos_dict = obtener_repositorios() or {}
+    repo_choices = list(repos_dict.values())
+    selected_repo = request.form.get("repo") or repo_choices[0] if repo_choices else None
 
-        # Seleccionar repo por defecto
-        if not selected_repo:
-            selected_repo = repo_choices[0] if repo_choices else None
+    # -------------------------------------
+    #               POST
+    # -------------------------------------
+    if request.method == "POST":
+        action = request.form.get("action")
+        log_file = os.path.join(selected_repo, "push_log.txt") if selected_repo else None
 
-        # -------------------------------------
-        #               POST
-        # -------------------------------------
-        if request.method == "POST":
-            selected_repo = request.form.get("repo") or selected_repo
-            action = request.form.get("action")
-
-            log_file = os.path.join(selected_repo, "push_log.txt") if selected_repo else None
-
-            if selected_repo and action == "push":
+        if selected_repo and action == "push":
+            try:
                 git_push_and_log(selected_repo, BRANCH, log_file)
+            except Exception as e:
+                error_message = str(e)
+            # Después del push, hacemos redirect para evitar la advertencia del navegador
+            return redirect(url_for('index'))
 
-                # POST → REDIRECT → GET  (evita alert al recargar)
-                return redirect(url_for("index", repo=selected_repo, pushed=1))
-
-        # -------------------------------------
-        #     Cargar datos del repo elegido
-        # -------------------------------------
-        if selected_repo:
+    # -------------------------------------
+    #     GET: Cargar datos del repo elegido
+    # -------------------------------------
+    if selected_repo:
+        try:
             (
                 commits,
                 push_dates,
@@ -121,9 +119,8 @@ def index():
                 tareas,
                 project_finalizado
             ) = calcular_datos_repo(selected_repo)
-
-    except Exception as e:
-        error_message = str(e)
+        except Exception as e:
+            error_message = str(e)
 
     return render_template(
         "index.html",
@@ -136,8 +133,7 @@ def index():
         total_duration=total_duration_str,
         tareas=tareas,
         project_finalizado=project_finalizado,
-        error_message=error_message,
-        pushed=request.args.get("pushed")  # para mostrar alert solo 1 vez
+        error_message=error_message
     )
 
 
