@@ -21,7 +21,7 @@ def format_timedelta(td: timedelta) -> str:
     return f"{minutes}:{seconds:02d}"
 
 def calcular_datos_repo(selected_repo):
-    """Obtiene commits, pushes, duración total y datos de proyecto, imprime todas las duraciones de tareas."""
+    """Obtiene commits, pushes, duración total y datos de proyecto."""
     commits = get_local_commits(selected_repo) or []
     log_file = os.path.join(selected_repo, "push_log.txt")
     push_dates = get_push_dates_from_log(log_file) or {}
@@ -34,7 +34,7 @@ def calcular_datos_repo(selected_repo):
         except Exception:
             c['_dt'] = None
 
-    # Ordenar commits por fecha ascendente para detectar duraciones correctamente
+    # Ordenar commits por fecha ascendente
     commits_sorted = sorted([c for c in commits if c['_dt']], key=lambda x: x['_dt'])
 
     # Detectar fin de proyecto
@@ -43,9 +43,24 @@ def calcular_datos_repo(selected_repo):
 
     # Fechas del proyecto
     fechas = [c['_dt'] for c in commits if c['_dt']]
-    project_start = min(fechas) if fechas else None
+    project_start_dt = min(fechas) if fechas else None
+
+    # Formatear fecha de inicio con hora
+    if project_start_dt:
+        meses = [
+            "enero", "febrero", "marzo", "abril", "mayo", "junio",
+            "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+        ]
+        dia = project_start_dt.day
+        mes = meses[project_start_dt.month - 1]
+        anio = project_start_dt.year
+        hora = project_start_dt.strftime("%H:%M")
+        project_start_formateado = f"{dia} de {mes} de {anio} a las {hora}"
+    else:
+        project_start_formateado = ""
+
     fecha_fin = datetime.fromisoformat(commit_end['commit_date']) if commit_end else datetime.now()
-    days_passed = (max(0, (fecha_fin.date() - project_start.date()).days) if project_start else 0)
+    days_passed = (max(0, (fecha_fin.date() - project_start_dt.date()).days) if project_start_dt else 0)
 
     # Preparar tabla combined con duraciones correctas
     combined = []
@@ -53,44 +68,61 @@ def calcular_datos_repo(selected_repo):
     for c in commits_sorted:
         sha = c.get('sha', '')[:7]
         message = c.get('message', '')
-        commit_date_str = c.get('commit_date', '')
-        duracion_str = ''
-
         commit_datetime = c.get('_dt')
+        duracion_str = ''
 
         if message.startswith("+") and commit_datetime:
             last_plus_commit = c
         elif message.startswith("-") and commit_datetime and last_plus_commit:
-            # Duración = commit(-) - commit(+)
             duracion_td = commit_datetime - last_plus_commit['_dt']
             if duracion_td.total_seconds() < 0:
                 duracion_td = timedelta(0)
             duracion_str = format_timedelta(duracion_td)
             logging.info(f"TAREA DETECTADA: {message}, DURACIÓN: {duracion_str}")
-            last_plus_commit = None  # reiniciar para la siguiente tarea
+            last_plus_commit = None
+
+        # Formatear fecha y hora del commit
+        if commit_datetime:
+            meses = [
+                "ene", "feb", "mar", "abr", "may", "jun",
+                "jul", "ago", "sep", "oct", "nov", "dic"
+            ]
+            dia = commit_datetime.day
+            mes = meses[commit_datetime.month - 1]
+            anio = commit_datetime.year
+            fecha_formateada = f"{dia} de {mes} {anio}"
+            hora_formateada = commit_datetime.strftime("%H:%M")
+        else:
+            fecha_formateada = ""
+            hora_formateada = ""
 
         combined.append({
             "sha": sha,
             "message": message,
-            "date": commit_date_str,
+            "date": fecha_formateada,
+            "time": hora_formateada,
             "duration": duracion_str if message.startswith("-") else ''
         })
 
     # Duración total de todas las tareas
     total_duration = sum(
-        (timedelta(
-            hours=int(d.split(":")[0]),
-            minutes=int(d.split(":")[1]),
-            seconds=int(d.split(":")[2])
-        ) if len(d.split(":")) == 3 else timedelta(
-            minutes=int(d.split(":")[0]),
-            seconds=int(d.split(":")[1])
-        ) for d in [row['duration'] for row in combined if row['duration']]),
+        (
+            timedelta(
+                hours=int(d.split(":")[0]),
+                minutes=int(d.split(":")[1]),
+                seconds=int(d.split(":")[2])
+            ) if len(d.split(":")) == 3 else timedelta(
+                minutes=int(d.split(":")[0]),
+                seconds=int(d.split(":")[1])
+            )
+            for d in [row['duration'] for row in combined if row['duration']]
+        ),
         timedelta()
     )
     total_duration_str = format_timedelta(total_duration)
 
-    return commits, push_dates, project_start, days_passed, total_duration_str, project_finalizado, combined
+    return commits, push_dates, project_start_formateado, days_passed, total_duration_str, project_finalizado, combined
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -146,6 +178,7 @@ def index():
         combined=combined,
         error_message=error_message
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <title>MetHub</title>
     <style>
+        *{
+             align-items: center; 
+             justify-content: center;
+        }
         body { font-family: Arial, sans-serif; background: rgb(36, 36, 36); padding: 20px; color: #fff; }
 
         .container {
@@ -83,63 +87,68 @@
 
         <h2>{{ last }}</h2>
     {% endif %}
+    <div style="display: flex; gap: 30px; height: 400px;">
+        <div style="display: flex; width: 40%; height: 400px; align-items: start;">
+            <table style="margin: 0;">
+                <tbody>
+                    <tr>
+                        <th>Inicio</th>
+                        <td>{{ project_start }}</td>
+                    </tr>
 
-    <table style="width: 30%;">
-        <tbody>
-            <tr>
-                <th>Inicio</th>
-                <td>{{ project_start }}</td>
-            </tr>
+                    <tr>
+                        <th>Días transcurridos</th>
+                        <td>{{ days_passed }}</td>
+                    </tr>
 
-            <tr>
-                <th>Días transcurridos</th>
-                <td>{{ days_passed }}</td>
-            </tr>
+                    <tr>
+                        <th>¿Finalizado?</th>
+                        <td>
+                            {% if project_finalizado %}
+                                <span>Sí</span>
+                            {% else %}
+                                <span>No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
 
-            <tr>
-                <th>¿Finalizado?</th>
-                <td>
-                    {% if project_finalizado %}
-                        <span class="ok">Sí</span>
-                    {% else %}
-                        <span class="error">No</span>
-                    {% endif %}
-                </td>
-            </tr>
+                    <tr>
+                        <th>Duración total</th>
+                        <td><strong>{{ total_duration }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="height: 400px; width: 60%; border: 1px solid #fff; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; margin: 0;">
+                <thead style="position: sticky; top: 0; z-index: 1; background-color: #333;">
+                    <tr>
+                        <th style="padding: 8px; border-bottom: 1px solid #ccc;">SHA</th>
+                        <th style="padding: 8px; border-bottom: 1px solid #ccc;">Mensaje</th>
+                        <th style="padding: 8px; border-bottom: 1px solid #ccc;">Fecha</th>
+                        <th style="padding: 8px; border-bottom: 1px solid #ccc;">Hora</th>
+                        <th style="padding: 8px; border-bottom: 1px solid #ccc;">Duración</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in combined|reverse %}
+                    <tr>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee;">{{ row.sha[:7] }}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee;">{{ row.message }}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee;">{{ row.date }}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee;">{{ row.time }}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee;">
+                            {% if row.duration %}
+                                {{ row.duration }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+</div>
 
-            <tr>
-                <th>Duración total</th>
-                <td><strong>{{ total_duration }}</strong></td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2>Tareas detectadas</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>SHA</th>
-                <th>Mensaje</th>
-                <th>Fecha</th>
-                <th>Duración (-)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in combined|reverse %}
-            <tr>
-                <td>{{ row.sha[:7] }}</td>
-                <td>{{ row.message }}</td>
-                <td>{{ row.date }}</td>
-                <td>
-                    {% if row.duration %}
-                        {{ row.duration }}
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+    </div>
 </div>
 </body>
 </html>
