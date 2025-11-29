@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %}</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #242424;
+            color: #fff;
+        }
+
+        /* Navbar */
+        .navbar {
+            width: 100%;
+            height: 60px;
+            background-color: #222;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* Layout principal */
+        .layout {
+            display: flex;
+            margin-top: 60px; /* altura de navbar */
+            height: calc(100vh - 60px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background-color: #333;
+            transition: width 0.3s;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar li {
+            padding: 15px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #444;
+            white-space: nowrap;
+        }
+
+        .sidebar li:hover {
+            background-color: #444;
+        }
+
+        /* Contenido principal */
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            transition: margin-left 0.3s;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <button class="sidebar-toggle" id="toggleBtn">&#9776;</button>
+        <h1>MetHub</h1>
+    </div>
+
+    <!-- Layout principal -->
+    <div class="layout">
+        <div class="sidebar" id="sidebar">
+            <ul>
+                <li>Dashboard</li>
+                <li>Proyectos</li>
+                <li>Configuración</li>
+            </ul>
+        </div>
+
+        <div class="content">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggleBtn');
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+    </script>
+</body>
+</html>
