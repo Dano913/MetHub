@@ -1,74 +1,96 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime, timedelta
+import logging
 
 from config.repo_selector import obtener_repositorios
 from git_utils.git_operations import get_local_commits, git_push_and_log, get_push_dates_from_log
-from helpers.time_utils import calcular_duracion_tareas, format_timedelta
 from config.settings import BRANCH
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
+def format_timedelta(td: timedelta) -> str:
+    """Convierte timedelta a string HH:MM:SS o MM:SS si es menor a 1h."""
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
 
 def calcular_datos_repo(selected_repo):
-    """Obtiene commits, pushes, duración total y datos de proyecto."""
+    """Obtiene commits, pushes, duración total y datos de proyecto, imprime todas las duraciones de tareas."""
     commits = get_local_commits(selected_repo) or []
     log_file = os.path.join(selected_repo, "push_log.txt")
     push_dates = get_push_dates_from_log(log_file) or {}
 
-    # ------------------------------
-    #     DETECTAR FIN DE PROYECTO
-    # ------------------------------
-    commit_end = next(
-        (c for c in reversed(commits) if "[END]" in c.get('message', '')),
-        None
-    )
+    # Convertir fechas a datetime
+    for c in commits:
+        commit_date_str = c.get('commit_date')
+        try:
+            c['_dt'] = datetime.fromisoformat(commit_date_str)
+        except Exception:
+            c['_dt'] = None
+
+    # Ordenar commits por fecha ascendente para detectar duraciones correctamente
+    commits_sorted = sorted([c for c in commits if c['_dt']], key=lambda x: x['_dt'])
+
+    # Detectar fin de proyecto
+    commit_end = next((c for c in reversed(commits) if "[END]" in c.get('message', '')), None)
     project_finalizado = commit_end is not None
 
-    # ------------------------------
-    #        FECHAS DEL PROYECTO
-    # ------------------------------
-    fechas = []
-    for c in commits:
-        try:
-            commit_date_str = c.get('commit_date')
-            if commit_date_str:
-                fechas.append(datetime.fromisoformat(commit_date_str.replace("Z", "+00:00")))
-        except Exception:
-            continue
-
+    # Fechas del proyecto
+    fechas = [c['_dt'] for c in commits if c['_dt']]
     project_start = min(fechas) if fechas else None
-    fecha_fin = (
-        datetime.fromisoformat(commit_end['commit_date'].replace("Z", "+00:00"))
-        if commit_end else datetime.now()
+    fecha_fin = datetime.fromisoformat(commit_end['commit_date']) if commit_end else datetime.now()
+    days_passed = (max(0, (fecha_fin.date() - project_start.date()).days) if project_start else 0)
+
+    # Preparar tabla combined con duraciones correctas
+    combined = []
+    last_plus_commit = None
+    for c in commits_sorted:
+        sha = c.get('sha', '')[:7]
+        message = c.get('message', '')
+        commit_date_str = c.get('commit_date', '')
+        duracion_str = ''
+
+        commit_datetime = c.get('_dt')
+
+        if message.startswith("+") and commit_datetime:
+            last_plus_commit = c
+        elif message.startswith("-") and commit_datetime and last_plus_commit:
+            # Duración = commit(-) - commit(+)
+            duracion_td = commit_datetime - last_plus_commit['_dt']
+            if duracion_td.total_seconds() < 0:
+                duracion_td = timedelta(0)
+            duracion_str = format_timedelta(duracion_td)
+            logging.info(f"TAREA DETECTADA: {message}, DURACIÓN: {duracion_str}")
+            last_plus_commit = None  # reiniciar para la siguiente tarea
+
+        combined.append({
+            "sha": sha,
+            "message": message,
+            "date": commit_date_str,
+            "duration": duracion_str if message.startswith("-") else ''
+        })
+
+    # Duración total de todas las tareas
+    total_duration = sum(
+        (timedelta(
+            hours=int(d.split(":")[0]),
+            minutes=int(d.split(":")[1]),
+            seconds=int(d.split(":")[2])
+        ) if len(d.split(":")) == 3 else timedelta(
+            minutes=int(d.split(":")[0]),
+            seconds=int(d.split(":")[1])
+        ) for d in [row['duration'] for row in combined if row['duration']]),
+        timedelta()
     )
-    days_passed = (
-        max(0, (fecha_fin.date() - project_start.date()).days)
-        if project_start else 0
-    )
-
-    # ------------------------------
-    #     DURACIÓN DE TAREAS (+ / -)
-    # ------------------------------
-    tareas = calcular_duracion_tareas(commits)
-
-    # Suma de duraciones
-    total_duration = timedelta()
-    for t in tareas.values():
-        total_duration += t["duracion"]
-
     total_duration_str = format_timedelta(total_duration)
 
-    return (
-        commits,
-        push_dates,
-        project_start,
-        days_passed,
-        total_duration_str,
-        tareas,
-        project_finalizado
-    )
-
+    return commits, push_dates, project_start, days_passed, total_duration_str, project_finalizado, combined
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -79,20 +101,15 @@ def index():
     project_start = None
     days_passed = 0
     total_duration_str = "0:00"
-    tareas = {}
     project_finalizado = False
+    combined = []
     repo_choices = []
 
-    # -------------------------------------
-    #     Obtener repositorios disponibles
-    # -------------------------------------
+    # Obtener repositorios disponibles
     repos_dict = obtener_repositorios() or {}
     repo_choices = list(repos_dict.values())
     selected_repo = request.form.get("repo") or repo_choices[0] if repo_choices else None
 
-    # -------------------------------------
-    #               POST
-    # -------------------------------------
     if request.method == "POST":
         action = request.form.get("action")
         log_file = os.path.join(selected_repo, "push_log.txt") if selected_repo else None
@@ -102,23 +119,17 @@ def index():
                 git_push_and_log(selected_repo, BRANCH, log_file)
             except Exception as e:
                 error_message = str(e)
-            # Después del push, hacemos redirect para evitar la advertencia del navegador
             return redirect(url_for('index'))
 
-    # -------------------------------------
-    #     GET: Cargar datos del repo elegido
-    # -------------------------------------
     if selected_repo:
         try:
-            (
-                commits,
-                push_dates,
-                project_start,
-                days_passed,
-                total_duration_str,
-                tareas,
-                project_finalizado
-            ) = calcular_datos_repo(selected_repo)
+            (commits,
+             push_dates,
+             project_start,
+             days_passed,
+             total_duration_str,
+             project_finalizado,
+             combined) = calcular_datos_repo(selected_repo)
         except Exception as e:
             error_message = str(e)
 
@@ -131,11 +142,10 @@ def index():
         project_start=project_start,
         days_passed=days_passed,
         total_duration=total_duration_str,
-        tareas=tareas,
         project_finalizado=project_finalizado,
+        combined=combined,
         error_message=error_message
     )
-
 
 if __name__ == "__main__":
     app.run(debug=True)

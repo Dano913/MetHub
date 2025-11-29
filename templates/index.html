@@ -13,19 +13,17 @@
             margin: auto;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-
-        h1, h2 { margin-top: 0; }
         
         form{
-            border: 1px solid red;
             display: flex;
-
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
-        select, button {
-            padding: 10px;
-            margin: 5px 0 20px 0;
-            font-size: 16px;
+        select, button{
+            background: #333;
+            color: #fff;
         }
 
         table {
@@ -38,10 +36,6 @@
             border: 1px solid #ccc;
             padding: 8px;
             text-align: left;
-        }
-
-        table th {
-            background: #eaeaea;
         }
 
         .tarea-box {
@@ -58,99 +52,93 @@
 
 <body>
 <div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Proyects</h1>
 
-    <h1>Proyects</h1>
-
-    {% if error_message %}
-    <p class="error">{{ error_message }}</p>
-    {% endif %}
-
-    <!-- Selector de repos -->
-    <form method="POST">
-        <label for="repo">Seleccionar repositorio:</label><br>
-        <select name="repo" id="repo">
-            {% for repo in repo_choices %}
-                <option value="{{ repo }}" {% if repo == selected_repo %}selected{% endif %}>
-                    {{ repo }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <br><br>
-
-        <button type="submit" name="action" value="select">Cargar</button>
-        <button type="submit" name="action" value="push">Push + Log</button>
-    </form>
-
-    <hr>
-
-    {% if selected_repo %}
-    <h2>Repositorio seleccionado:</h2>
-    <p><strong>{{ selected_repo }}</strong></p>
-
-    <h2>Estado del proyecto</h2>
-    <p>Inicio: <strong>{{ project_start }}</strong></p>
-    <p>Días transcurridos: <strong>{{ days_passed }}</strong></p>
-    <p>¿Finalizado?:
-        {% if project_finalizado %}
-            <span class="ok">Sí</span>
-        {% else %}
-            <span class="error">No</span>
+        {% if error_message %}
+            <p class="error">{{ error_message }}</p>
         {% endif %}
-    </p>
 
-    <h2>Duración total de tareas (+ / -)</h2>
-    <p><strong>{{ total_duration }}</strong></p>
+        <!-- Selector de repos -->
+        <form method="POST">
+            <label for="repo">Seleccionar repositorio:</label>
+            <select name="repo" id="repo">
+                {% for repo in repo_choices %}
+                    {% set clean = repo.replace('\\', '/') %}
+                    {% set last = clean.split('/')[-1] %}
+                    <option value="{{ repo }}" {% if repo == selected_repo %}selected{% endif %}>
+                        {{ last }}
+                    </option>
+                {% endfor %}
+            </select>
 
-    <h2>Tareas detectadas</h2>
-    <div class="tarea-box">
-        {% if tareas %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Commit Fin (SHA)</th>
-                        <th>Tarea</th>
-                        <th>Duración</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sha, info in tareas.items() %}
-                    <tr>
-                        <td>{{ sha }}</td>
-                        <td>{{ info.tarea }}</td>
-                        <td>{{ info.duracion }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No se han detectado tareas aún.</p>
-        {% endif %}
+            <button type="submit" name="action" value="select">Cargar</button>
+            <button type="submit" name="action" value="push">Push + Log</button>
+        </form>
     </div>
 
-    <hr>
+    {% if selected_repo %}
+        {% set clean = selected_repo.replace('\\', '/') %}
+        {% set last = clean.split('/')[-1] %}
 
-    <h2>Commits</h2>
+        <h2>{{ last }}</h2>
+    {% endif %}
+
+    <table style="width: 30%;">
+        <tbody>
+            <tr>
+                <th>Inicio</th>
+                <td>{{ project_start }}</td>
+            </tr>
+
+            <tr>
+                <th>Días transcurridos</th>
+                <td>{{ days_passed }}</td>
+            </tr>
+
+            <tr>
+                <th>¿Finalizado?</th>
+                <td>
+                    {% if project_finalizado %}
+                        <span class="ok">Sí</span>
+                    {% else %}
+                        <span class="error">No</span>
+                    {% endif %}
+                </td>
+            </tr>
+
+            <tr>
+                <th>Duración total</th>
+                <td><strong>{{ total_duration }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Tareas detectadas</h2>
     <table>
         <thead>
             <tr>
                 <th>SHA</th>
                 <th>Mensaje</th>
                 <th>Fecha</th>
+                <th>Duración (-)</th>
             </tr>
         </thead>
         <tbody>
-            {% for c in commits %}
+            {% for row in combined|reverse %}
             <tr>
-                <td>{{ c.sha[:7] }}</td>
-                <td>{{ c.message }}</td>
-                <td>{{ c.commit_date }}</td>
+                <td>{{ row.sha[:7] }}</td>
+                <td>{{ row.message }}</td>
+                <td>{{ row.date }}</td>
+                <td>
+                    {% if row.duration %}
+                        {{ row.duration }}
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
-    {% endif %}
 
 </div>
 </body>
