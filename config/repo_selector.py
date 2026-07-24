@@ -1,18 +1,62 @@
+# =========== #
+# 📦 IMPORTS #
+# ========== #
 import os
 
-BASE_DIR = r"C:\Users\danie\Desktop\Proyectos\Funcionan"   #Define carpeta donde se buscan los repos en modo raw string(r"") para evitar problemas con barras invertidas\
+
+# ====================== #
+# ⚙️ CONFIGURACIÓN BASE #
+# ===================== #
+# Ruta donde se buscan los repositorios Git
+BASE_DIR = r"C:\Users\danie\Desktop\Proyectos\JAVA"
 
 
+# =============================== #
+# 🔍 VALIDACIÓN: REPOSITORIO GIT #
+# ============================== #
 def es_repo_git(path):
-    return os.path.isdir(os.path.join(path, ".git"))       #Verifica que carpetas contienen la carpeta .git dentro de BASE_DIR y construye las rutas para que obtener_repositorios las recorra
+    """
+    Verifica si una carpeta contiene un repositorio Git
+    (presencia de la carpeta .git)
+    """
+    return os.path.isdir(os.path.join(path, ".git"))
 
 
-def obtener_repositorios() -> dict | None:                 #Define la función que devuelve un diccionario de repositorios o None
-    
-    repos = {                                                                                             #Crea un diccionario con todos los repositorios detectados
-        str(idx): os.path.join(BASE_DIR, folder)                                                          #Clave = índice como string, Valor = ruta completa del folder
-        for idx, folder in enumerate(os.listdir(BASE_DIR), start=1)                                       #Itera sobre todas las carpetas en BASE_DIR con índice
-        if os.path.isdir(os.path.join(BASE_DIR, folder)) and es_repo_git(os.path.join(BASE_DIR, folder))  #Solo agrega carpetas que sean directorios y contengan .git
+# ======================================= #
+# 📁 DISCOVERY: REPOSITORIOS DISPONIBLES #
+# ====================================== #
+def obtener_repositorios() -> dict | None:
+    """
+    Busca repositorios dentro de BASE_DIR
+
+    RETORNA:
+        dict {
+            "1": "ruta_repo_1",
+            "2": "ruta_repo_2",
+            ...
+        }
+        o None si no hay repos
+    """
+
+    # ------------------------- #
+    # 🔄 ESCANEO DE DIRECTORIO #
+    # ------------------------ #
+    repos = {
+        str(idx): os.path.join(BASE_DIR, folder)
+
+        for idx, folder in enumerate(
+            os.listdir(BASE_DIR),
+            start=1
+        )
+
+        # 📌 FILTRO:
+        # - debe ser carpeta
+        # - debe contener .git
+        if os.path.isdir(os.path.join(BASE_DIR, folder))
+        and es_repo_git(os.path.join(BASE_DIR, folder))
     }
-    return repos or None                                                                                  #Devuelve el diccionario si tiene elementos, si no devuelve None
 
+    # ------------- #
+    # 📤 RESULTADO #
+    # ------------ #
+    return repos or None
